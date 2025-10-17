@@ -8,7 +8,7 @@ export default function App() {
 
   useEffect(() => {
     // Connect to the Socket.IO server
-    const newSocket = io('http://localhost:3000');
+    const newSocket = io('https://socketpractice-nestjs.onrender.com');
     setSocket(newSocket);
 
     // Receive a message from the server
