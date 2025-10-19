@@ -11,7 +11,7 @@ export default function App() {
   const [joined, setJoined] = useState<boolean>(false);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:3000');
+    const newSocket = io('https://socketpractice-nestjs.onrender.com');
     setSocket(newSocket);
 
     newSocket.on('message', (payload: { author: string; text: string }) => {
