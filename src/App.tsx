@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import io, { Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
+import { initSocket, getSocket } from './components/Socket/Socket';
 
 export default function App() {
   interface ChatMessage {
-  room: string;
-  author: string;
-  text: string;
-}
+    room: string;
+    author: string;
+    text: string;
+  }
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
@@ -17,41 +18,87 @@ export default function App() {
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   useEffect(() => {
-    const newSocket = io('https://socketpractice-nestjs.onrender.com', {
-      transports: ['websocket'],
-      reconnection: true
-    });
+    const s = initSocket(); // persistent singleton socket
+    setSocket(s);
 
-    console.log('Attempting connection...');
+    // ensure no duplicate handlers
+    s.off('connect');
+    s.off('connect_error');
+    s.off('disconnect');
+    s.off('reconnect');
+    s.off('message');
+    s.off('welcome');
 
-    newSocket.on('connect', () => {
-      console.log('Connected to server');
+    s.on('connect', () => {
+      console.log('Connected to server', s.id);
       setIsConnected(true);
-      setSocket(newSocket);
+
+      // attempt restore join info
+      const saved = localStorage.getItem('chat:join');
+      if (saved) {
+        try {
+          const { room: savedRoom, name: savedName } = JSON.parse(saved) as { room?: string; name?: string };
+          if (savedRoom) {
+            setRoom(savedRoom);
+            if (savedName) setName(savedName);
+            s.emit('join', savedRoom);
+            setJoined(true);
+            setReceivedMessages(prev => [...prev, `System: restored join to ${savedRoom}`]);
+          }
+        } catch (err) {
+          console.warn('Failed to parse saved join info', err);
+        }
+      }
     });
 
-    newSocket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+    s.on('connect_error', (err) => {
+      console.error('Connection error:', err);
       setIsConnected(false);
     });
 
-newSocket.on('message', (payload: ChatMessage) => {
-  console.log('Received message:', JSON.stringify(payload, null, 2));
-  if (!payload?.author || !payload?.text) {
-    console.error('Invalid message format:', payload);
-    return;
-  }
-  setReceivedMessages(prev => [...prev, `${payload.author}: ${payload.text}`]);
-});
+    s.on('disconnect', (reason) => {
+      console.log('Disconnected:', reason);
+      setIsConnected(false);
+    });
 
-    newSocket.on('welcome', (msg: string) => {
-      console.log('Welcome:', msg);
+    s.on('reconnect', (attempt) => {
+      console.log('Reconnected after', attempt);
+      setIsConnected(true);
+    });
+
+    s.on('message', (payload: ChatMessage | { author?: string; text?: string }) => {
+      // handle string messages too
+      if (!payload) return;
+      // If server sent a string (e.g., "Server received: ..."), normalize
+      if (typeof payload === 'string') {
+        setReceivedMessages(prev => [...prev, `Server: ${payload}`]);
+        return;
+      }
+
+      // payload may be an object with author/text
+      const author = (payload as any).author ?? 'Server';
+      const txt = (payload as any).text ?? String(payload);
+      if (!author || !txt) {
+        console.error('Invalid message format:', payload);
+        return;
+      }
+      setReceivedMessages(prev => [...prev, `${author}: ${txt}`]);
+    });
+
+    s.on('welcome', (msg: string) => {
       setReceivedMessages(prev => [...prev, `System: ${msg}`]);
     });
 
+    // do not close the socket on component unmount — keep persistent connection
     return () => {
-      newSocket.close();
-      setIsConnected(false);
+      // remove listeners we added (but don't close singleton socket)
+      s.off('connect');
+      s.off('connect_error');
+      s.off('disconnect');
+      s.off('reconnect');
+      s.off('message');
+      s.off('welcome');
+      setSocket(getSocket());
     };
   }, []);
 
@@ -59,6 +106,7 @@ newSocket.on('message', (payload: ChatMessage) => {
     if (!socket || !room || !name) return;
     socket.emit('join', room);
     setJoined(true);
+    localStorage.setItem('chat:join', JSON.stringify({ room, name }));
     setReceivedMessages(prev => [...prev, `System: joined ${room}`]);
   };
 
@@ -70,9 +118,7 @@ newSocket.on('message', (payload: ChatMessage) => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      sendMessage();
-    }
+    if (e.key === 'Enter') sendMessage();
   };
 
   return (
@@ -83,7 +129,7 @@ newSocket.on('message', (payload: ChatMessage) => {
             Disconnected from server. Attempting to reconnect...
           </div>
         )}
-        
+
         <div className="mb-4 grid grid-cols-2 gap-4">
           <input
             value={name}
@@ -99,8 +145,8 @@ newSocket.on('message', (payload: ChatMessage) => {
             className="px-3 py-2 rounded bg-gray-700"
             disabled={joined}
           />
-          <button 
-            onClick={joinRoom} 
+          <button
+            onClick={joinRoom}
             className="bg-blue-600 p-4 rounded hover:bg-blue-700 cursor-pointer transition-colors disabled:opacity-50"
             disabled={joined || !name || !room}
           >
@@ -132,7 +178,7 @@ newSocket.on('message', (payload: ChatMessage) => {
           />
           <button
             onClick={sendMessage}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 cursor-pointer  rounded-lg font-medium transition-colors disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 cursor-pointer rounded-lg font-medium transition-colors disabled:opacity-50"
             disabled={!joined || !text.trim()}
           >
             Send
