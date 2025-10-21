@@ -180,22 +180,30 @@ export default function App() {
     setReceivedMessages(prev => [...prev, `System: created/joined private room ${roomId}`]);
   };
 
+  // const sendMessage = (): void => {
+  //   if (!socket || !joined || !text.trim()) return;
+  //   const isPrivate = room !== 'lobby' && room.length > 0;
+  //   const payload: ChatMessage = { room, author: name || 'anon', text: text.trim(), isPrivate };
+  //   socket.emit('message', payload);
+  //   // echo locally so sender sees immediate message
+  //   if (isPrivate) {
+  //     setPrivateChats(prev => ({
+  //       ...prev,
+  //       [room]: [...(prev[room] || []), `${payload.author}: ${payload.text}`]
+  //     }));
+  //   } else {
+  //     setReceivedMessages(prev => [...prev, `${payload.author}: ${payload.text}`]);
+  //   }
+  //   setText('');
+  // };
+
   const sendMessage = (): void => {
-    if (!socket || !joined || !text.trim()) return;
-    const isPrivate = room !== 'lobby' && room.length > 0;
-    const payload: ChatMessage = { room, author: name || 'anon', text: text.trim(), isPrivate };
-    socket.emit('message', payload);
-    // echo locally so sender sees immediate message
-    if (isPrivate) {
-      setPrivateChats(prev => ({
-        ...prev,
-        [room]: [...(prev[room] || []), `${payload.author}: ${payload.text}`]
-      }));
-    } else {
-      setReceivedMessages(prev => [...prev, `${payload.author}: ${payload.text}`]);
-    }
-    setText('');
-  };
+  if (!socket || !joined || !text.trim()) return;
+  const isPrivate = room !== 'lobby' && room.length > 0;
+  const payload: ChatMessage = { room, author: name || 'anon', text: text.trim(), isPrivate };
+  socket.emit('message', payload);
+  setText('');
+};
 
   return (
     <div className="h-screen bg-gray-900 text-white py-8 px-2">
