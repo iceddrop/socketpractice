@@ -145,6 +145,22 @@ export default function App() {
     localStorage.setItem('chat:join', JSON.stringify({ name }));
   };
 
+  const goToLobby = () => {
+    if (!socket) return;
+
+    // tell server we are leaving current room (server should remove from room tracking)
+    if (room && room !== 'lobby') {
+      socket.emit('leave', { room });
+    }
+
+    // join lobby
+    socket.emit('join', 'lobby');
+    setRoom('lobby');
+    setJoined(true);
+    localStorage.setItem('chat:join', JSON.stringify({ room: 'lobby', name }));
+    setReceivedMessages(prev => [...prev, `System: returned to lobby`]);
+  };
+
   // joins public group room (simple join)
   const joinRoom = () => {
     if (!socket || !room || !name) return;
@@ -198,21 +214,25 @@ export default function App() {
   // };
 
   const sendMessage = (): void => {
-  if (!socket || !joined || !text.trim()) return;
-  const isPrivate = room !== 'lobby' && room.length > 0;
-  const payload: ChatMessage = { room, author: name || 'anon', text: text.trim(), isPrivate };
-  socket.emit('message', payload);
-  setText('');
-};
+    if (!socket || !joined || !text.trim()) return;
+    const isPrivate = room !== 'lobby' && room.length > 0;
+    const payload: ChatMessage = { room, author: name || 'anon', text: text.trim(), isPrivate };
+    socket.emit('message', payload);
+    setText('');
+  };
+
+  console.log(onlineUsers)
 
   return (
-    <div className="h-screen bg-gray-900 text-white py-8 px-2">
+    <div className="h-screen w-full bg-gray-900 text-white py-8 px-2">
       <div className="h-full flex gap-4">
         {/* Left: controls / users */}
-        {isSidebarOpen ? <div className="w-72 bg-gray-800 p-4 rounded-lg flex flex-col gap-4">
-          <div>
-            <MoveLeft className='my-4 cursor-pointer' onClick={() => setIsSidebarOpen(false)}/>
-            <h3 className="text-lg font-semibold mb-2">Identity & Room</h3>
+        {isSidebarOpen ? 
+        <div className="w-72 bg-gray-800 p-4 rounded-lg flex flex-col gap-4">
+          <div className='overflow-y-scroll'>
+          <div className=''>
+            <MoveLeft className='my-4 cursor-pointer' onClick={() => setIsSidebarOpen(false)} />
+            <h3 className="text-lg font-semibold mb-2">Join the general chat</h3>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
@@ -270,7 +290,7 @@ export default function App() {
             </p>
           </div>
 
-          <div>
+          <div className=''>
             <h3 className="text-lg font-semibold mb-2">Online Users</h3>
             <div className="max-h-48 overflow-auto space-y-2">
               {onlineUsers.length === 0 ? (
@@ -284,25 +304,33 @@ export default function App() {
                         onClick={() => createPrivateChat(u)}
                         className="bg-indigo-600 px-2 py-1 rounded text-sm"
                       >
-                        Private
+                        send a DM
                       </button>
-                      <a
+                      {/* <a
                         href={`/dm/${u.id}`}
                         className="bg-blue-600 px-2 py-1 rounded text-sm"
                       >
                         General server
-                      </a>
+                      </a> */}
                     </div>
                   </div>
                 ))
               )}
             </div>
           </div>
+          <button
+            onClick={goToLobby}
+            className="bg-green-600 text-sm p-3 mt-4 rounded disabled:opacity-50"
+            disabled={!socket || room === 'lobby'}
+          >
+            Go to Lobby
+          </button>
+          </div>
         </div>
-        : 
-        <div className="bg-gray-800 rounded-lg h-8 pt-1 px-1 cursor-pointer">
-          <Menu onClick={() => setIsSidebarOpen(true)} />
-        </div>
+          :
+          <div className="bg-gray-800 rounded-lg h-8 pt-1 px-1 cursor-pointer">
+            <Menu onClick={() => setIsSidebarOpen(true)} />
+          </div>
         }
 
         {/* Right: chat area */}
