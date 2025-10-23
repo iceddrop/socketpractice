@@ -88,21 +88,17 @@ export default function App() {
         return;
       }
 
-      // private message stored separately per room
+      // Handle messages based on type and current room
       if (payload.isPrivate) {
+        // Store private messages only in privateChats
         setPrivateChats(prev => ({
           ...prev,
           [payload.room]: [...(prev[payload.room] || []), `${payload.author}: ${payload.text}`]
         }));
-        // also add to public list if currently in that private room (so view shows)
-        if (payload.room === room) {
-          setReceivedMessages(prev => [...prev, `${payload.author}: ${payload.text}`]);
-        }
-        return;
+      } else {
+        // Store public messages only in receivedMessages
+        setReceivedMessages(prev => [...prev, `${payload.author}: ${payload.text}`]);
       }
-
-      // public/group message
-      setReceivedMessages(prev => [...prev, `${payload.author}: ${payload.text}`]);
     });
 
     s.on('welcome', (msg: string) => {
@@ -221,112 +217,112 @@ export default function App() {
     setText('');
   };
 
-  console.log(onlineUsers)
+  console.log(room)
 
   return (
     <div className="h-screen w-full bg-gray-900 text-white py-8 px-2">
       <div className="h-full flex gap-4">
         {/* Left: controls / users */}
-        {isSidebarOpen ? 
-        <div className="w-72 bg-gray-800 p-4 rounded-lg flex flex-col gap-4">
-          <div className='overflow-y-scroll'>
-          <div className=''>
-            <MoveLeft className='my-4 cursor-pointer' onClick={() => setIsSidebarOpen(false)} />
-            <h3 className="text-lg font-semibold mb-2">Join the general chat</h3>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Your name"
-              className="w-full px-3 py-2 rounded bg-gray-700 mb-2"
-              disabled={joined}
-            />
-            <div className="grid grid-cols-1 gap-2 mb-2">
-              <input
-                value={room}
-                onChange={e => setRoom(e.target.value)}
-                placeholder="Public room (lobby)"
-                className="flex-1 px-3 py-2 rounded bg-gray-700"
-                disabled={joined}
-              />
-              <button
-                onClick={joinRoom}
-                disabled={joined || !name || !room}
-                className="bg-blue-600 p-3 rounded disabled:opacity-50"
-              >
-                Join
-              </button>
-            </div>
-            <div className="mt-3">
-              <button
-                onClick={registerUser}
-                disabled={!name}
-                className="bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
-              >
-                Register Name
-              </button>
-            </div>
-          </div>
+        {isSidebarOpen ?
+          <div className="w-72 bg-gray-800 p-4 rounded-lg flex flex-col gap-4">
+            <div className='overflow-y-scroll'>
+              <div className=''>
+                <MoveLeft className='my-4 cursor-pointer' onClick={() => setIsSidebarOpen(false)} />
+                <h3 className="text-lg font-semibold mb-2">Join the general chat</h3>
+                <input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full px-3 py-2 rounded bg-gray-700 mb-2"
+                  disabled={joined}
+                />
+                <div className="grid grid-cols-1 gap-2 mb-2">
+                  <input
+                    value={room}
+                    onChange={e => setRoom(e.target.value)}
+                    placeholder="Public room (lobby)"
+                    className="flex-1 px-3 py-2 rounded bg-gray-700"
+                    disabled={joined}
+                  />
+                  <button
+                    onClick={joinRoom}
+                    disabled={joined || !name || !room}
+                    className="bg-blue-600 p-3 rounded disabled:opacity-50"
+                  >
+                    Join
+                  </button>
+                </div>
+                <div className="mt-3">
+                  <button
+                    onClick={registerUser}
+                    disabled={!name}
+                    className="bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
+                  >
+                    Register Name
+                  </button>
+                </div>
+              </div>
 
-          <div className=''>
-            <h3 className="text-lg font-semibold mb-2">Private Room (by ID)</h3>
-            <div className="">
-              <input
-                value={privateRoomId}
-                onChange={e => setPrivateRoomId(e.target.value)}
-                placeholder="Private room ID"
-                className="flex-1 px-3 py-2 rounded bg-gray-700"
-                disabled={joined}
-              />
-              <button
-                onClick={joinPrivateById}
-                disabled={!name || !privateRoomId}
-                className="bg-green-600 p-3 mt-4 rounded disabled:opacity-50"
-              >
-                Join Private
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">
-              Share the room ID with another user to chat privately.
-            </p>
-          </div>
+              <div className=''>
+                <h3 className="text-lg font-semibold mb-2">Private Room (by ID)</h3>
+                <div className="">
+                  <input
+                    value={privateRoomId}
+                    onChange={e => setPrivateRoomId(e.target.value)}
+                    placeholder="Private room ID"
+                    className="flex-1 px-3 py-2 rounded bg-gray-700"
+                    disabled={joined}
+                  />
+                  <button
+                    onClick={joinPrivateById}
+                    disabled={!name || !privateRoomId}
+                    className="bg-green-600 p-3 mt-4 rounded disabled:opacity-50"
+                  >
+                    Join Private
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Share the room ID with another user to chat privately.
+                </p>
+              </div>
 
-          <div className=''>
-            <h3 className="text-lg font-semibold mb-2">Online Users</h3>
-            <div className="max-h-48 overflow-auto space-y-2">
-              {onlineUsers.length === 0 ? (
-                <p className="text-gray-400 text-sm">No other users online</p>
-              ) : (
-                onlineUsers.map(u => (
-                  <div key={u.id} className="flex items-center justify-between bg-gray-700 p-2 rounded">
-                    <span className="truncate">{u.name || u.id}</span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => createPrivateChat(u)}
-                        className="bg-indigo-600 px-2 py-1 rounded text-sm"
-                      >
-                        send a DM
-                      </button>
-                      {/* <a
+              <div className=''>
+                <h3 className="text-lg font-semibold mb-2">Online Users</h3>
+                <div className="max-h-48 overflow-auto space-y-2">
+                  {onlineUsers.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No other users online</p>
+                  ) : (
+                    onlineUsers.map(u => (
+                      <div key={u.id} className="flex items-center justify-between bg-gray-700 p-2 rounded">
+                        <span className="truncate">{u.name || u.id}</span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => createPrivateChat(u)}
+                            className="bg-indigo-600 px-2 py-1 rounded text-sm"
+                          >
+                            send a DM
+                          </button>
+                          {/* <a
                         href={`/dm/${u.id}`}
                         className="bg-blue-600 px-2 py-1 rounded text-sm"
                       >
                         General server
                       </a> */}
-                    </div>
-                  </div>
-                ))
-              )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={goToLobby}
+                className="bg-green-600 text-sm p-3 mt-4 rounded disabled:opacity-50"
+                disabled={!socket || room === 'lobby'}
+              >
+                Go to Lobby
+              </button>
             </div>
           </div>
-          <button
-            onClick={goToLobby}
-            className="bg-green-600 text-sm p-3 mt-4 rounded disabled:opacity-50"
-            disabled={!socket || room === 'lobby'}
-          >
-            Go to Lobby
-          </button>
-          </div>
-        </div>
           :
           <div className="bg-gray-800 rounded-lg h-8 pt-1 px-1 cursor-pointer">
             <Menu onClick={() => setIsSidebarOpen(true)} />
