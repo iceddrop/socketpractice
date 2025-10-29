@@ -179,6 +179,8 @@ export default function App() {
     setPrivateRoomId('');
   };
 
+  console.log(joinPrivateById)
+
   // create a private room with a user id (server should forward invite)
   const createPrivateChat = (targetUser: User) => {
     if (!socket) return;
@@ -220,12 +222,12 @@ export default function App() {
   console.log(room)
 
   return (
-    <div className="h-screen w-full bg-gray-900 text-white py-8 px-2">
+    <div className="h-screen w-full bg-gray-900 text-white py-8 px-2 overflow-x-hidden">
       <div className="h-full flex gap-4">
         {/* Left: controls / users */}
         {isSidebarOpen ?
-          <div className="w-72 bg-gray-800 p-4 rounded-lg flex flex-col gap-4">
-            <div className='overflow-y-scroll'>
+            <div className="z-1 fixed left-0 top-0 h-full w-72 bg-gray-800 p-4 rounded-lg flex flex-col gap-4 overflow-y-auto">
+            <div className='flex flex-col h-full'>
               <div className=''>
                 <MoveLeft className='my-4 cursor-pointer' onClick={() => setIsSidebarOpen(false)} />
                 <h3 className="text-lg font-semibold mb-2">Join the general chat</h3>
@@ -263,35 +265,14 @@ export default function App() {
                 </div>
               </div>
 
-              <div className=''>
-                <h3 className="text-lg font-semibold mb-2">Private Room (by ID)</h3>
-                <div className="">
-                  <input
-                    value={privateRoomId}
-                    onChange={e => setPrivateRoomId(e.target.value)}
-                    placeholder="Private room ID"
-                    className="flex-1 px-3 py-2 rounded bg-gray-700"
-                    disabled={joined}
-                  />
-                  <button
-                    onClick={joinPrivateById}
-                    disabled={!name || !privateRoomId}
-                    className="bg-green-600 p-3 mt-4 rounded disabled:opacity-50"
-                  >
-                    Join Private
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  Share the room ID with another user to chat privately.
-                </p>
-              </div>
 
-              <div className=''>
+
+              <div className='mt-4'>
                 <h3 className="text-lg font-semibold mb-2">Online Users</h3>
                 <div className="max-h-48 overflow-auto space-y-2">
                   {onlineUsers.length === 0 ? (
                     <p className="text-gray-400 text-sm">No other users online</p>
-                  ) : (
+                    ) : (
                     onlineUsers.map(u => (
                       <div key={u.id} className="flex items-center justify-between bg-gray-700 p-2 rounded">
                         <span className="truncate">{u.name || u.id}</span>
@@ -321,6 +302,29 @@ export default function App() {
               >
                 Go to Lobby
               </button>
+
+              {/* <div className=''>
+                <h3 className="text-lg font-semibold mb-2">Private Room (by ID)</h3>
+                <div className="">
+                  <input
+                    value={privateRoomId}
+                    onChange={e => setPrivateRoomId(e.target.value)}
+                    placeholder="Private room ID"
+                    className="flex-1 px-3 py-2 rounded bg-gray-700"
+                    disabled={joined}
+                  />
+                  <button
+                    onClick={joinPrivateById}
+                    disabled={!name || !privateRoomId}
+                    className="bg-green-600 p-3 mt-4 rounded disabled:opacity-50"
+                  >
+                    Join Private
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Share the room ID with another user to chat privately.
+                </p>
+              </div> */}
             </div>
           </div>
           :
@@ -330,32 +334,32 @@ export default function App() {
         }
 
         {/* Right: chat area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {!isConnected && (
             <div className="bg-red-500 text-white p-2 rounded mb-2">
               Disconnected. Reconnecting...
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto space-y-2 p-4 bg-gray-800 rounded-lg">
+          <div className="mb-6 overflow-y-auto space-y-2 p-4 bg-gray-800 rounded-lg">
             <div className="text-sm text-gray-400 mb-2">Room: {room}</div>
 
             {room === 'lobby'
               ? (receivedMessages.length === 0
                 ? <p className="text-gray-400">No messages yet in lobby.</p>
                 : receivedMessages.map((m, i) => (
-                  <div key={i} className="bg-gray-700 p-2 rounded text-sm">{m}</div>
+                  <div key={i} className="bg-gray-700 p-2 rounded text-sm break-words">{m}</div>
                 ))
               )
               : ((privateChats[room] || []).length === 0
                 ? <p className="text-gray-400">No messages yet in private room.</p>
                 : (privateChats[room] || []).map((m, i) => (
-                  <div key={i} className="bg-gray-700 p-2 rounded text-sm">{m}</div>
+                  <div key={i} className="bg-gray-700 p-2 rounded text-sm break-words">{m}</div>
                 )))
             }
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mb-2 md:w-[90%] fixed bottom-0 flex gap-1 mx-1">
             <input
               type="text"
               value={text}
