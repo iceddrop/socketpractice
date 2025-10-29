@@ -359,20 +359,20 @@ export default function App() {
             }
           </div>
 
-          <div className="mb-2 md:w-[90%] fixed bottom-0 flex gap-1 mx-1">
+          <div className="mb-2  md:w-[90%]  fixed bottom-0 grid grid-cols-4  gap-2 ">
             <input
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendMessage()}
               placeholder={joined ? "Type a message..." : "Join a room first"}
-              className="flex-1 px-4 py-2 rounded bg-gray-700 focus:outline-none"
+              className=" px-4 py-2 rounded bg-gray-700 focus:outline-none col-span-2"
               disabled={!joined}
             />
             <button
               onClick={sendMessage}
               disabled={!joined || !text.trim()}
-              className="bg-blue-600 px-6 py-2 rounded disabled:opacity-50"
+              className="bg-blue-600 px-6 py-2 rounded disabled:opacity-50 "
             >
               Send
             </button>
