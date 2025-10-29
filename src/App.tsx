@@ -260,7 +260,7 @@ export default function App() {
                     disabled={!name}
                     className="bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
                   >
-                    Register Name
+                    Show online status
                   </button>
                 </div>
               </div>
