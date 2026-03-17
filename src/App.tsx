@@ -3,6 +3,7 @@ import type { Socket } from 'socket.io-client';
 import { initSocket } from './components/Socket/Socket';
 import { Menu, MoveLeft } from 'lucide-react';
 interface ChatMessage {
+  _id?: string;
   room: string;
   author: string;
   text: string;
@@ -79,24 +80,35 @@ export default function App() {
       }
     });
 
+    s.on('recentmessages', (msgs: ChatMessage[]) => {
+      // msgs likely oldest -> newest from server
+      if (!msgs || msgs.length === 0) return;
+      if (msgs[0].isPrivate) {
+        // assume all belong to same private room
+        const roomId = msgs[0].room;
+        // store strings to match `privateChats: Record<string, string[]>`
+        setPrivateChats(prev => ({ ...prev, [roomId]: msgs.map(m => `${m.author}: ${m.text}`) }));
+      } else {
+        // convert ChatMessage[] -> string[] for receivedMessages
+        setReceivedMessages(msgs.map(m => `${m.author}: ${m.text}`));
+      }
+    });
+
     s.on('message', (payload: ChatMessage | string | undefined) => {
       if (!payload) return;
-
-      // if server sent a plain string
+      // string messages come from server or system
       if (typeof payload === 'string') {
         setReceivedMessages(prev => [...prev, `Server: ${payload}`]);
         return;
       }
 
-      // Handle messages based on type and current room
+      // Convert ChatMessage objects into strings to keep state typed as string[]
       if (payload.isPrivate) {
-        // Store private messages only in privateChats
         setPrivateChats(prev => ({
           ...prev,
-          [payload.room]: [...(prev[payload.room] || []), `${payload.author}: ${payload.text}`]
+          [payload.room]: [...(prev[payload.room] || []), `${payload.author}: ${payload.text}`],
         }));
       } else {
-        // Store public messages only in receivedMessages
         setReceivedMessages(prev => [...prev, `${payload.author}: ${payload.text}`]);
       }
     });
@@ -226,7 +238,7 @@ export default function App() {
       <div className="h-full flex gap-4">
         {/* Left: controls / users */}
         {isSidebarOpen ?
-            <div className="z-1 fixed left-0 top-0 h-full w-72 bg-gray-800 p-4 rounded-lg flex flex-col gap-4 overflow-y-auto">
+          <div className="z-1 fixed left-0 top-0 h-full w-72 bg-gray-800 p-4 rounded-lg flex flex-col gap-4 overflow-y-auto">
             <div className='flex flex-col h-full'>
               <div className=''>
                 <MoveLeft className='my-4 cursor-pointer' onClick={() => setIsSidebarOpen(false)} />
@@ -260,7 +272,7 @@ export default function App() {
                     disabled={!name}
                     className="bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
                   >
-                    Show online status
+                    Add friends
                   </button>
                 </div>
               </div>
@@ -272,7 +284,7 @@ export default function App() {
                 <div className="max-h-48 overflow-auto space-y-2">
                   {onlineUsers.length === 0 ? (
                     <p className="text-gray-400 text-sm">No other users online</p>
-                    ) : (
+                  ) : (
                     onlineUsers.map(u => (
                       <div key={u.id} className="flex items-center justify-between bg-gray-700 p-2 rounded">
                         <span className="truncate">{u.name || u.id}</span>
@@ -359,14 +371,14 @@ export default function App() {
             }
           </div>
 
-          <div className="mb-2  md:w-[90%]  fixed bottom-0 grid grid-cols-4  gap-2 ">
+          <div className="mb-2  md:w-[90%]  fixed bottom-0 grid grid-cols-4  gap-2 pr-2">
             <input
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendMessage()}
               placeholder={joined ? "Type a message..." : "Join a room first"}
-              className=" px-4 py-2 rounded bg-gray-700 focus:outline-none col-span-2"
+              className=" px-4 py-2 rounded bg-gray-700 focus:outline-none col-span-3"
               disabled={!joined}
             />
             <button
