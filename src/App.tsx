@@ -283,7 +283,7 @@ export default function App() {
                 </div>
                 <div className="mt-3 w-full">
                   <button
-                    onClick={() => {registerUser() ; setIsModalOpenTwo(!isModalOpenTwo)}}
+                    onClick={() => {registerUser() ; setIsModalOpenTwo(!isModalOpenTwo) ; setIsSidebarOpen(false)}}
                     disabled={!name}
                     className="w-full flex justify-center cursor-pointer items-center bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
                   >
