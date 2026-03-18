@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import { initSocket } from './components/Socket/Socket';
 import { Menu, MoveLeft } from 'lucide-react';
+import { useUIStore } from './store/uiStore';
+import { SetUsername } from "./components/SetusernameModal/SetUsername";
+import { HiMiniInboxArrowDown } from "react-icons/hi2";
+import { SuccessModal } from './components/SuccesModal/SuccessModal';
 interface ChatMessage {
   _id?: string;
   room: string;
@@ -26,7 +30,7 @@ export default function App() {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [onlineUsers, setOnlineUsers] = useState<User[]>([]);
   const [privateChats, setPrivateChats] = useState<Record<string, string[]>>({});
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const { isSidebarOpen, setIsSidebarOpen, isModalOpen, setIsModalOpen } = useUIStore();
 
   useEffect(() => {
     const s = initSocket();
@@ -169,6 +173,15 @@ export default function App() {
     setReceivedMessages(prev => [...prev, `System: returned to lobby`]);
   };
 
+
+  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+
+  // useEffect(() => {
+  //   // Modal shows automatically, optionally close after delay:
+  //   const timer = setTimeout(() => setShowWelcomeModal(false), 5000); // 5 seconds
+  //   return () => clearTimeout(timer);
+  // }, []);
+
   // joins public group room (simple join)
   const joinRoom = () => {
     if (!socket || !room || !name) return;
@@ -246,7 +259,7 @@ export default function App() {
                 <input
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Your name"
+                  placeholder="Enter your name"
                   className="w-full px-3 py-2 rounded bg-gray-700 mb-2"
                   disabled={joined}
                 />
@@ -259,20 +272,21 @@ export default function App() {
                     disabled={joined}
                   />
                   <button
-                    onClick={joinRoom}
+                    onClick={() => { joinRoom(); setIsSidebarOpen(!isSidebarOpen); setIsModalOpen(!isModalOpen)}}
                     disabled={joined || !name || !room}
-                    className="bg-blue-600 p-3 rounded disabled:opacity-50"
+                    className="bg-blue-600 p-3 rounded disabled:opacity-50 cursor-pointer"
                   >
-                    Join
+                    Enter Lobby Chat
                   </button>
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 w-full">
                   <button
                     onClick={registerUser}
                     disabled={!name}
-                    className="bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
+                    className="w-full flex justify-center cursor-pointer items-center bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
                   >
-                    Add friends
+                    <HiMiniInboxArrowDown className='mx-2' />
+                    Allow private messages
                   </button>
                 </div>
               </div>
@@ -391,6 +405,18 @@ export default function App() {
           </div>
         </div>
       </div>
+      <SetUsername
+        isOpen={showWelcomeModal}
+        onClose={() => setShowWelcomeModal(false)}
+        title="Welcome to SocketChat!"
+      >
+        <p>Connect and chat with others in real-time!</p>
+      </SetUsername>
+      <SuccessModal
+        title={`Hello, ${name}!`}
+      >
+        <p>Welcome to the server chat!</p>
+      </SuccessModal>
     </div>
   );
 }
