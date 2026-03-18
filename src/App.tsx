@@ -6,6 +6,7 @@ import { useUIStore } from './store/uiStore';
 import { SetUsername } from "./components/SetusernameModal/SetUsername";
 import { HiMiniInboxArrowDown } from "react-icons/hi2";
 import { SuccessModal } from './components/SuccesModal/SuccessModal';
+import { DoneModal } from './components/DoneModal/DoneModal';
 interface ChatMessage {
   _id?: string;
   room: string;
@@ -25,12 +26,11 @@ export default function App() {
   const [text, setText] = useState<string>('');
   const [name, setName] = useState<string>('');
   const [room, setRoom] = useState<string>('lobby');
-  const [privateRoomId, setPrivateRoomId] = useState<string>('');
   const [joined, setJoined] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [onlineUsers, setOnlineUsers] = useState<User[]>([]);
   const [privateChats, setPrivateChats] = useState<Record<string, string[]>>({});
-  const { isSidebarOpen, setIsSidebarOpen, isModalOpen, setIsModalOpen } = useUIStore();
+  const { isSidebarOpen, setIsSidebarOpen, isModalOpen, setIsModalOpen, isModalOpenTwo, setIsModalOpenTwo } = useUIStore();
 
   useEffect(() => {
     const s = initSocket();
@@ -75,6 +75,8 @@ export default function App() {
 
     s.on('private-invite', ({ from, roomId, fromName }: { from: string; roomId: string; fromName: string }) => {
       const accept = window.confirm(`${fromName || from} invited you to a private chat (room: ${roomId}). Accept?`);
+      setIsModalOpenTwo(true);
+      setIsSidebarOpen(false)
       if (accept) {
         // join private room
         s.emit('join', roomId);
@@ -175,7 +177,7 @@ export default function App() {
 
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
-
+  
   // useEffect(() => {
   //   // Modal shows automatically, optionally close after delay:
   //   const timer = setTimeout(() => setShowWelcomeModal(false), 5000); // 5 seconds
@@ -193,18 +195,18 @@ export default function App() {
   };
 
   // join any private room by id (manual)
-  const joinPrivateById = () => {
-    if (!socket || !privateRoomId || !name) return;
-    socket.emit('register-user', { name });
-    socket.emit('join', privateRoomId);
-    setRoom(privateRoomId);
-    setJoined(true);
-    localStorage.setItem('chat:join', JSON.stringify({ room: privateRoomId, name }));
-    setReceivedMessages(prev => [...prev, `System: joined private room ${privateRoomId}`]);
-    setPrivateRoomId('');
-  };
+  // const joinPrivateById = () => {
+  //   if (!socket || !privateRoomId || !name) return;
+  //   socket.emit('register-user', { name });
+  //   socket.emit('join', privateRoomId);
+  //   setRoom(privateRoomId);
+  //   setJoined(true);
+  //   localStorage.setItem('chat:join', JSON.stringify({ room: privateRoomId, name }));
+  //   setReceivedMessages(prev => [...prev, `System: joined private room ${privateRoomId}`]);
+  //   setPrivateRoomId('');
+  // };
 
-  console.log(joinPrivateById)
+  
 
   // create a private room with a user id (server should forward invite)
   const createPrivateChat = (targetUser: User) => {
@@ -244,7 +246,7 @@ export default function App() {
     setText('');
   };
 
-  console.log(room)
+ 
 
   return (
     <div className="h-screen w-full bg-gray-900 text-white py-8 px-2 overflow-x-hidden">
@@ -281,7 +283,7 @@ export default function App() {
                 </div>
                 <div className="mt-3 w-full">
                   <button
-                    onClick={registerUser}
+                    onClick={() => {registerUser() ; setIsModalOpenTwo(!isModalOpenTwo)}}
                     disabled={!name}
                     className="w-full flex justify-center cursor-pointer items-center bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
                   >
@@ -304,7 +306,7 @@ export default function App() {
                         <span className="truncate">{u.name || u.id}</span>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => createPrivateChat(u)}
+                            onClick={() => {createPrivateChat(u) ; setIsSidebarOpen(!isSidebarOpen) ; setIsModalOpen(!isModalOpen) ; setIsModalOpenTwo(!isModalOpenTwo)}}
                             className="bg-indigo-600 px-2 py-1 rounded text-sm"
                           >
                             send a DM
@@ -322,7 +324,7 @@ export default function App() {
                 </div>
               </div>
               <button
-                onClick={goToLobby}
+                onClick={() => {goToLobby() ; setIsSidebarOpen(!isSidebarOpen)}}
                 className="bg-green-600 text-sm p-3 mt-4 rounded disabled:opacity-50"
                 disabled={!socket || room === 'lobby'}
               >
@@ -415,8 +417,11 @@ export default function App() {
       <SuccessModal
         title={`Hello, ${name}!`}
       >
-        <p>Welcome to the server chat!</p>
+        <p>Welcome to chat!</p>
       </SuccessModal>
+      <DoneModal
+        title="Done!"
+      />
     </div>
   );
 }
