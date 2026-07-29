@@ -55,11 +55,14 @@ export default function App() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved) as { room?: string; name?: string };
+          
           if (parsed.room) {
             setRoom(parsed.room);
             if (parsed.name) setName(parsed.name);
             // emit simple join with room string (keeps compatibility)
-            s.emit('join', parsed.room);
+            if (parsed.name) {
+  s.emit('register-user', { name: parsed.name });
+}
             setJoined(true);
             setReceivedMessages(prev => [...prev, `System: restored join to ${parsed.room}`]);
           }
@@ -71,6 +74,7 @@ export default function App() {
 
     s.on('users', (users: User[]) => {
       setOnlineUsers(users.filter(u => u.id !== s.id));
+      console.log('Online users:', users);
     });
 
     s.on('private-invite', ({ from, roomId, fromName }: { from: string; roomId: string; fromName: string }) => {
