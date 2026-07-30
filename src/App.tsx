@@ -31,6 +31,7 @@ export default function App() {
   const [onlineUsers, setOnlineUsers] = useState<User[]>([]);
   const [privateChats, setPrivateChats] = useState<Record<string, string[]>>({});
   const { isSidebarOpen, setIsSidebarOpen, isModalOpen, setIsModalOpen, isModalOpenTwo, setIsModalOpenTwo } = useUIStore();
+  // const [acceptDm, setAcceptDm] = useState<boolean>(false);
 
   useEffect(() => {
     const s = initSocket();
@@ -55,14 +56,14 @@ export default function App() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved) as { room?: string; name?: string };
-          
+
           if (parsed.room) {
             setRoom(parsed.room);
             if (parsed.name) setName(parsed.name);
             // emit simple join with room string (keeps compatibility)
             if (parsed.name) {
-  s.emit('register-user', { name: parsed.name });
-}
+              s.emit('register-user', { name: parsed.name });
+            }
             setJoined(true);
             setReceivedMessages(prev => [...prev, `System: restored join to ${parsed.room}`]);
           }
@@ -83,11 +84,16 @@ export default function App() {
       setIsSidebarOpen(false)
       if (accept) {
         // join private room
+        s.emit('private-invite-response', { roomId, from, acceptDm: true });
         s.emit('join', roomId);
         setRoom(roomId);
         setJoined(true);
         setReceivedMessages(prev => [...prev, `System: joined private room ${roomId}`]);
+      } else {
+        s.emit('private-invite-response', { roomId, from, acceptDm: true });
+
       }
+
     });
 
     s.on('recentmessages', (msgs: ChatMessage[]) => {
@@ -181,7 +187,7 @@ export default function App() {
 
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
-  
+
   // useEffect(() => {
   //   // Modal shows automatically, optionally close after delay:
   //   const timer = setTimeout(() => setShowWelcomeModal(false), 5000); // 5 seconds
@@ -210,7 +216,7 @@ export default function App() {
   //   setPrivateRoomId('');
   // };
 
-  
+
 
   // create a private room with a user id (server should forward invite)
   const createPrivateChat = (targetUser: User) => {
@@ -250,7 +256,7 @@ export default function App() {
     setText('');
   };
 
- 
+
 
   return (
     <div className="h-screen w-full bg-gray-900 text-white py-8 px-2 overflow-x-hidden">
@@ -278,7 +284,7 @@ export default function App() {
                     disabled={joined}
                   />
                   <button
-                    onClick={() => { joinRoom(); setIsSidebarOpen(!isSidebarOpen); setIsModalOpen(!isModalOpen)}}
+                    onClick={() => { joinRoom(); setIsSidebarOpen(!isSidebarOpen); setIsModalOpen(!isModalOpen) }}
                     disabled={joined || !name || !room}
                     className="bg-blue-600 p-3 rounded disabled:opacity-50 cursor-pointer"
                   >
@@ -287,7 +293,7 @@ export default function App() {
                 </div>
                 <div className="mt-3 w-full">
                   <button
-                    onClick={() => {registerUser() ; setIsModalOpenTwo(!isModalOpenTwo) ; setIsSidebarOpen(false)}}
+                    onClick={() => { registerUser(); setIsModalOpenTwo(!isModalOpenTwo); setIsSidebarOpen(false) }}
                     disabled={!name}
                     className="w-full flex justify-center cursor-pointer items-center bg-gray-600 px-3 py-1 rounded disabled:opacity-50"
                   >
@@ -310,7 +316,7 @@ export default function App() {
                         <span className="truncate">{u.name || u.id}</span>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {createPrivateChat(u) ; setIsSidebarOpen(!isSidebarOpen) ; setIsModalOpen(!isModalOpen) ; setIsModalOpenTwo(!isModalOpenTwo)}}
+                            onClick={() => { createPrivateChat(u); setIsSidebarOpen(!isSidebarOpen); setIsModalOpen(!isModalOpen); setIsModalOpenTwo(!isModalOpenTwo) }}
                             className="bg-indigo-600 px-2 py-1 rounded text-sm"
                           >
                             send a DM
@@ -328,7 +334,7 @@ export default function App() {
                 </div>
               </div>
               <button
-                onClick={() => {goToLobby() ; setIsSidebarOpen(!isSidebarOpen)}}
+                onClick={() => { goToLobby(); setIsSidebarOpen(!isSidebarOpen) }}
                 className="bg-green-600 text-sm p-3 mt-4 rounded disabled:opacity-50"
                 disabled={!socket || room === 'lobby'}
               >
