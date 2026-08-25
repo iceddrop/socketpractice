@@ -142,7 +142,7 @@ export default function App() {
       console.log('disconnect', reason);
       setIsConnected(false);
     });
-
+    
     s.on('reconnect', (attempt) => {
       console.log('reconnect', attempt);
       setIsConnected(true);
