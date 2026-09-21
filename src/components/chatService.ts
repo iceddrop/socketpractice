@@ -57,7 +57,7 @@ class ChatService {
   /**
    * STEP 1: Connect to WebSocket server
    */
-  connect(userId: string, serverUrl: string = 'http://localhost:4000'): Socket {
+  connect(userId: string, serverUrl: string = 'https://socketpractice-nestjs.onrender.com'): Socket {
     if (this.socket?.connected) {
       console.log('Already connected');
       return this.socket;
@@ -195,6 +195,14 @@ class ChatService {
   onReceiveMessage(callback: (data: ReceivedMessage) => void): void {
     if (!this.socket) return;
 
+    // Remove old listener if it exists to prevent duplicates
+    if (this.eventListeners.has('receiveMessage')) {
+      const oldCallback = this.eventListeners.get('receiveMessage');
+      if (oldCallback) {
+        this.socket.off('receiveMessage', oldCallback as any);
+      }
+    }
+
     this.socket.on('receiveMessage', callback);
     
     // Store listener for cleanup
@@ -207,6 +215,14 @@ class ChatService {
   onUserTyping(callback: (data: TypingIndicator) => void): void {
     if (!this.socket) return;
 
+    // Remove old listener if it exists to prevent duplicates
+    if (this.eventListeners.has('userTyping')) {
+      const oldCallback = this.eventListeners.get('userTyping');
+      if (oldCallback) {
+        this.socket.off('userTyping', oldCallback as any);
+      }
+    }
+
     this.socket.on('userTyping', callback);
     this.eventListeners.set('userTyping', callback);
   }
@@ -216,17 +232,47 @@ class ChatService {
    */
   onRoomJoined(callback: (data: RoomJoinedData) => void): void {
     if (!this.socket) return;
+    
+    // Remove old listener if it exists to prevent duplicates
+    if (this.eventListeners.has('roomJoined')) {
+      const oldCallback = this.eventListeners.get('roomJoined');
+      if (oldCallback) {
+        this.socket.off('roomJoined', oldCallback as any);
+      }
+    }
+    
     this.socket.on('roomJoined', callback);
+    this.eventListeners.set('roomJoined', callback);
   }
 
   onUserJoinedRoom(callback: (data: UserRoomEvent) => void): void {
     if (!this.socket) return;
+    
+    // Remove old listener if it exists to prevent duplicates
+    if (this.eventListeners.has('userJoinedRoom')) {
+      const oldCallback = this.eventListeners.get('userJoinedRoom');
+      if (oldCallback) {
+        this.socket.off('userJoinedRoom', oldCallback as any);
+      }
+    }
+    
     this.socket.on('userJoinedRoom', callback);
+    this.eventListeners.set('userJoinedRoom', callback);
   }
 
   onUserLeftRoom(callback: (data: UserRoomEvent) => void): void {
     if (!this.socket) return;
+    
+    // Remove old listener if it exists to prevent duplicates
+    if (this.eventListeners.has('userLeftRoom')) {
+      const oldCallback = this.eventListeners.get('userLeftRoom');
+      if (oldCallback) {
+        this.socket.off('userLeftRoom', oldCallback as any);
+      }
+    }
+    
     this.socket.on('userLeftRoom', callback);
+    this.eventListeners.set('userLeftRoom', callback);
   }
 
   /**

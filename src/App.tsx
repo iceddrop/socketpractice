@@ -4,7 +4,7 @@ import { initSocket } from './components/Socket/Socket';
 import { Menu, MoveLeft } from 'lucide-react';
 import { useUIStore } from './store/uiStore';
 import { SetUsername } from "./components/SetusernameModal/SetUsername";
-import { HiMiniInboxArrowDown } from "react-icons/hi2";
+// import { HiMiniInboxArrowDown } from "react-icons/hi2";
 import { SuccessModal } from './components/SuccesModal/SuccessModal';
 import { DoneModal } from './components/DoneModal/DoneModal';
 interface ChatMessage {
@@ -25,12 +25,15 @@ export default function App() {
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
   const [text, setText] = useState<string>('');
   const [name, setName] = useState<string>('');
+
   const [room, setRoom] = useState<string>('lobby');
   const [joined, setJoined] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [onlineUsers, setOnlineUsers] = useState<User[]>([]);
   const [privateChats, setPrivateChats] = useState<Record<string, string[]>>({});
   const { isSidebarOpen, setIsSidebarOpen, isModalOpen, setIsModalOpen, isModalOpenTwo, setIsModalOpenTwo } = useUIStore();
+  const displayName = name.trim();
+  const canJoinRoom = displayName.length > 0;
   // const [acceptDm, setAcceptDm] = useState<boolean>(false);
 
   useEffect(() => {
@@ -56,19 +59,33 @@ export default function App() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved) as { room?: string; name?: string };
+          const savedName = parsed.name?.trim();
 
           if (parsed.room) {
             setRoom(parsed.room);
-            if (parsed.name) setName(parsed.name);
-            // emit simple join with room string (keeps compatibility)
-            if (parsed.name) {
-              s.emit('register-user', { name: parsed.name });
+            if (savedName) {
+              setName(savedName);
+              s.emit('register-user', { name: savedName });
             }
-            setJoined(true);
-            setReceivedMessages(prev => [...prev, `System: restored join to ${parsed.room}`]);
+            // Only restore a previous room if a username exists.
+            if (savedName && !joined) {
+              s.emit('join', parsed.room);
+              setJoined(true);
+            }
+            if (savedName) {
+              setReceivedMessages(prev => [...prev, `System: restored join to ${parsed.room}`]);
+            }
           }
         } catch (err) {
           console.warn('Failed to parse saved join info', err);
+        }
+      } else {
+        // Prevent auto-joining before a username is set.
+        if (!joined && canJoinRoom) {
+          s.emit('join', 'lobby');
+          setRoom('lobby');
+          setJoined(true);
+          setReceivedMessages(prev => [...prev, `System: auto-joined lobby`]);
         }
       }
     });
@@ -106,7 +123,27 @@ export default function App() {
         setPrivateChats(prev => ({ ...prev, [roomId]: msgs.map(m => `${m.author}: ${m.text}`) }));
       } else {
         // convert ChatMessage[] -> string[] for receivedMessages
-        setReceivedMessages(msgs.map(m => `${m.author}: ${m.text}`));
+        const incoming = msgs.map(m => `${m.author}: ${m.text}`);
+        // merge with existing messages and remove duplicates while preserving order
+        setReceivedMessages(prev => {
+          const seen = new Set<string>();
+          const combined: string[] = [];
+          // include previous first
+          for (const m of prev) {
+            if (!seen.has(m)) {
+              seen.add(m);
+              combined.push(m);
+            }
+          }
+          // then include incoming
+          for (const m of incoming) {
+            if (!seen.has(m)) {
+              seen.add(m);
+              combined.push(m);
+            }
+          }
+          return combined;
+        });
       }
     });
 
@@ -115,6 +152,11 @@ export default function App() {
       // string messages come from server or system
       if (typeof payload === 'string') {
         setReceivedMessages(prev => [...prev, `Server: ${payload}`]);
+        return;
+      }
+
+      // Filter out your own messages (already added in sendMessage)
+      if (payload.author === name) {
         return;
       }
 
@@ -163,14 +205,17 @@ export default function App() {
   }, [room, joined]);
 
   // register name only (keeps server informed of username)
-  const registerUser = () => {
-    if (!socket || !name) return;
-    socket.emit('register-user', { name });
-    localStorage.setItem('chat:join', JSON.stringify({ name }));
-  };
+  // const registerUser = () => {
+  //   if (!socket || !name) return;
+  //   socket.emit('register-user', { name });
+  //   localStorage.setItem('chat:join', JSON.stringify({ name }));
+  // };
 
   const goToLobby = () => {
-    if (!socket) return;
+    if (!socket || !canJoinRoom) {
+      setShowWelcomeModal(true);
+      return;
+    }
 
     // tell server we are leaving current room (server should remove from room tracking)
     if (room && room !== 'lobby') {
@@ -181,7 +226,7 @@ export default function App() {
     socket.emit('join', 'lobby');
     setRoom('lobby');
     setJoined(true);
-    localStorage.setItem('chat:join', JSON.stringify({ room: 'lobby', name }));
+    localStorage.setItem('chat:join', JSON.stringify({ room: 'lobby', name: displayName }));
     setReceivedMessages(prev => [...prev, `System: returned to lobby`]);
   };
 
@@ -196,11 +241,14 @@ export default function App() {
 
   // joins public group room (simple join)
   const joinRoom = () => {
-    if (!socket || !room || !name) return;
-    socket.emit('register-user', { name }); // ensure server knows name
+    if (!socket || !room || !canJoinRoom) {
+      setShowWelcomeModal(true);
+      return;
+    }
+    socket.emit('register-user', { name: displayName }); // ensure server knows name
     socket.emit('join', room);
     setJoined(true);
-    localStorage.setItem('chat:join', JSON.stringify({ room, name }));
+    localStorage.setItem('chat:join', JSON.stringify({ room, name: displayName }));
     setReceivedMessages(prev => [...prev, `System: joined ${room}`]);
   };
 
@@ -220,7 +268,10 @@ export default function App() {
 
   // create a private room with a user id (server should forward invite)
   const createPrivateChat = (targetUser: User) => {
-    if (!socket) return;
+    if (!socket || !canJoinRoom) {
+      setShowWelcomeModal(true);
+      return;
+    }
     const roomId = [socket.id, targetUser.id].sort().join('_');
     // server should notify the other user via 'private-invite'
     socket.emit('create-private-chat', { targetUserId: targetUser.id, roomId });
@@ -249,13 +300,25 @@ export default function App() {
   // };
 
   const sendMessage = (): void => {
-    if (!socket || !joined || !text.trim()) return;
+    if (!socket || !joined || !text.trim() || !canJoinRoom) return;
     const isPrivate = room !== 'lobby' && room.length > 0;
-    const payload: ChatMessage = { room, author: name || 'anon', text: text.trim(), isPrivate };
+    const payload: ChatMessage = { room, author: displayName || 'anon', text: text.trim(), isPrivate };
+    console.log(payload)
+    // send to server
     socket.emit('message', payload);
+
+    // echo locally so the sender sees their message immediately
+    if (isPrivate) {
+      setPrivateChats(prev => ({
+        ...prev,
+        [room]: [...(prev[room] || []), `${payload.author}: ${payload.text}`],
+      }));
+    } else {
+      setReceivedMessages(prev => [...prev, `${payload.author}: ${payload.text}`]);
+    }
+
     setText('');
   };
-
 
 
   return (
@@ -285,13 +348,13 @@ export default function App() {
                   />
                   <button
                     onClick={() => { joinRoom(); setIsSidebarOpen(!isSidebarOpen); setIsModalOpen(!isModalOpen) }}
-                    disabled={joined || !name || !room}
+                    disabled={joined || !canJoinRoom || !room}
                     className="bg-blue-600 p-3 rounded disabled:opacity-50 cursor-pointer"
                   >
                     Enter Lobby Chat
                   </button>
                 </div>
-                <div className="mt-3 w-full">
+                {/* <div className="mt-3 w-full">
                   <button
                     onClick={() => { registerUser(); setIsModalOpenTwo(!isModalOpenTwo); setIsSidebarOpen(false) }}
                     disabled={!name}
@@ -300,7 +363,7 @@ export default function App() {
                     <HiMiniInboxArrowDown className='mx-2' />
                     Allow private messages
                   </button>
-                </div>
+                </div> */}
               </div>
 
 
@@ -317,7 +380,8 @@ export default function App() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => { createPrivateChat(u); setIsSidebarOpen(!isSidebarOpen); setIsModalOpen(!isModalOpen); setIsModalOpenTwo(!isModalOpenTwo) }}
-                            className="bg-indigo-600 px-2 py-1 rounded text-sm"
+                            disabled={!canJoinRoom}
+                            className="bg-indigo-600 px-2 py-1 rounded text-sm disabled:opacity-50"
                           >
                             send a DM
                           </button>
@@ -336,7 +400,7 @@ export default function App() {
               <button
                 onClick={() => { goToLobby(); setIsSidebarOpen(!isSidebarOpen) }}
                 className="bg-green-600 text-sm p-3 mt-4 rounded disabled:opacity-50"
-                disabled={!socket || room === 'lobby'}
+                disabled={!socket || room === 'lobby' || !canJoinRoom}
               >
                 Go to Lobby
               </button>
